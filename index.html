@@ -16,7 +16,63 @@
   <div id="input-container">
     <input type="text" id="command-input" placeholder="Type you command here...">
   </div>
-  <script>
-    
-  </script>
+ <script>
+  const input = document.getElementById("command-input");
+  const display = document.getElementById("display-container");
+
+  // Command router (register your commands here)
+  const commands = {
+    '!help': showHelp,
+    '!leaderboard': showLeaderboard,
+    '!vouch': handleVouchCommand // This needs special parsing
+  };
+
+  input.addEventListener("keypress", function (e) {
+    if (e.key === "Enter") {
+      const commandText = input.value.trim();
+      input.value = "";
+      parseCommand(commandText);
+    }
+  });
+
+  function parseCommand(cmd) {
+    log("> " + cmd);
+
+    if (cmd.startsWith("!vouch-")) {
+      const userId = cmd.split("!vouch-")[1];
+      if (!userId) return log("❌ Please include a user (e.g., !vouch-user123)");
+      handleVouch(userId);
+      return;
+    }
+
+    if (commands[cmd]) {
+      commands[cmd]();
+    } else {
+      log("❌ Unknown command. Type !help");
+    }
+  }
+
+  function handleVouch(userId) {
+    log(`✅ Vouching for ${userId}...`);
+    // TODO: Replace this with Firebase Firestore logic
+    // Increment user’s vouch count in the database
+  }
+
+  function showLeaderboard() {
+    log("📊 Showing leaderboard...");
+    // TODO: Replace this with Firebase fetch and sort
+  }
+
+  function showHelp() {
+    log(`📝 Available Commands:
+!vouch-<userId> – Vouch for a user
+!leaderboard – Show top users
+!help – Show this list`);
+  }
+
+  function log(message) {
+    display.innerHTML += `<div>${message}</div>`;
+    display.scrollTop = display.scrollHeight;
+  }
+</script>
 </body>
