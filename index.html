@@ -1,78 +1,146 @@
 <!DOCTYPE html>
+<html lang="en">
 <head>
+  <meta charset="UTF-8">
   <title>Cover Voucher System</title>
+  <script src="https://www.gstatic.com/firebasejs/10.12.1/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.1/firebase-firestore.js"></script>
   <style>
-    
+    body {
+      font-family: Arial, sans-serif;
+      background: #111;
+      color: #fff;
+      padding: 20px;
+    }
+    #input-container {
+      margin-top: 20px;
+    }
+    input {
+      width: 300px;
+      padding: 10px;
+      font-size: 16px;
+    }
+    #display-container {
+      margin-top: 20px;
+      background: #222;
+      padding: 15px;
+      border-radius: 6px;
+      min-height: 100px;
+    }
+    .log {
+      margin: 5px 0;
+    }
   </style>
 </head>
 <body>
   <div id="header-container">
-    <h1>Cover Voucher System 1.0</h1>
-    <h5>Type a command to start (or !help to show command list)</h5><br>
-  </div><br>
-  <div id="display-container">
-    Commands will show here
-  </div><br>
-  <div id="input-container">
-    <input type="text" id="command-input" placeholder="Type you command here...">
+    <h1>Cover Voucher System 1.1</h1>
+    <h5>Type a command to start (e.g., <code>!help</code>)</h5>
   </div>
- <script>
-  const input = document.getElementById("command-input");
-  const display = document.getElementById("display-container");
 
-  // Command router (register your commands here)
-  const commands = {
-    '!help': showHelp,
-    '!leaderboard': showLeaderboard,
-    '!vouch': handleVouchCommand // This needs special parsing
-  };
+  <div id="display-container">Commands will show here...</div>
 
-  input.addEventListener("keypress", function (e) {
-    if (e.key === "Enter") {
-      const commandText = input.value.trim();
-      input.value = "";
-      parseCommand(commandText);
+  <div id="input-container">
+    <input type="text" id="command-input" placeholder="Type your command here..." />
+  </div>
+
+  <script>
+    // ✅ Firebase Config (replace if needed)
+    const firebaseConfig = {
+      apiKey: "AIzaSyAppxZQS-BB3vz7BDqpqPMeHjqqeLW8-c4",
+      authDomain: "vouch-system.firebaseapp.com",
+      projectId: "vouch-system",
+      storageBucket: "vouch-system.appspot.com",
+      messagingSenderId: "401131006928",
+      appId: "1:401131006928:web:182ced54c85b9b4f0a67d5"
+    };
+
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+
+    const input = document.getElementById("command-input");
+    const display = document.getElementById("display-container");
+
+    input.addEventListener("keypress", function (e) {
+      if (e.key === "Enter") {
+        const commandText = input.value.trim();
+        input.value = "";
+        parseCommand(commandText);
+      }
+    });
+
+    function log(message) {
+      display.innerHTML += `<div class="log">${message}</div>`;
+      display.scrollTop = display.scrollHeight;
     }
-  });
 
-  function parseCommand(cmd) {
-    log("> " + cmd);
+    function parseCommand(cmd) {
+      log("> " + cmd);
 
-    if (cmd.startsWith("!vouch-")) {
-      const userId = cmd.split("!vouch-")[1];
-      if (!userId) return log("❌ Please include a user (e.g., !vouch-user123)");
-      handleVouch(userId);
-      return;
-    }
+      if (cmd.startsWith("!vouch-")) {
+        const userId = cmd.split("!vouch-")[1].trim();
+        if (!userId) return log("❌ Please include a username (e.g., !vouch-user123)");
+        handleVouch(userId);
+        return;
+      }
 
-    if (commands[cmd]) {
-      commands[cmd]();
-    } else {
+      if (cmd === "!leaderboard") {
+        showLeaderboard();
+        return;
+      }
+
+      if (cmd === "!help") {
+        showHelp();
+        return;
+      }
+
       log("❌ Unknown command. Type !help");
     }
-  }
 
-  function handleVouch(userId) {
-    log(`✅ Vouching for ${userId}...`);
-    // TODO: Replace this with Firebase Firestore logic
-    // Increment user’s vouch count in the database
-  }
+    async function handleVouch(username) {
+      try {
+        const docRef = db.collection("usernames").doc(username);
+        const docSnap = await docRef.get();
 
-  function showLeaderboard() {
-    log("📊 Showing leaderboard...");
-    // TODO: Replace this with Firebase fetch and sort
-  }
+        if (docSnap.exists) {
+          const data = docSnap.data();
+          const newCount = (data.vouches || 0) + 1;
+          await docRef.update({ vouches: newCount });
+          log(`✅ Vouched for @${username} (Total: ${newCount})`);
+        } else {
+          await docRef.set({ vouches: 1, flags: 0, userid: "" });
+          log(`✅ Created @${username} and vouched once (Total: 1)`);
+        }
+      } catch (err) {
+        log("❌ Error updating Firestore");
+        console.error(err);
+      }
+    }
 
-  function showHelp() {
-    log(`📝 Available Commands:
-!vouch-<userId> – Vouch for a user
-!leaderboard – Show top users
-!help – Show this list`);
-  }
+    async function showLeaderboard() {
+      try {
+        const snapshot = await db.collection("usernames")
+          .orderBy("vouches", "desc")
+          .limit(5)
+          .get();
 
-  function log(message) {
-    display.innerHTML += `<div>${message}</div>`;
-    display.scrollTop = display.scrollHeight;
-  }
-</script>
+        log("📊 Top Users by Vouches:");
+        snapshot.forEach(doc => {
+          const data = doc.data();
+          log(`@${doc.id}: ${data.vouches || 0} vouches, ${data.flags || 0} flags`);
+        });
+      } catch (err) {
+        log("❌ Error loading leaderboard");
+        console.error(err);
+      }
+    }
+
+    function showHelp() {
+      log(`📝 Available Commands:
+• !vouch-<username> – Add a vouch for a user
+• !leaderboard – Show top 5 users by vouches
+• !help – Show this list`);
+    }
+  </script>
 </body>
+</html>
